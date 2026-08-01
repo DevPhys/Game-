@@ -1,0 +1,9 @@
+int x = 30;
+add x * 10 - 2 / 2 -> y;
+
+loop 60;
+
+	add x + 1 -> x;
+	add y + 5 -> y;
+
+end_loop;

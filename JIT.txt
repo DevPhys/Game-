@@ -1,0 +1,15 @@
+int x = 30;
+add x * 10 - 2 / 2 -> y;
+
+loop 10000;
+	
+	add x @ 1.1 -> y;
+	add x + 1 -> x;
+	
+	write 'Число';
+	write_var y;
+
+end_loop;
+
+int x = 30;
+add x * 10 - 2 / 2 -> y;
