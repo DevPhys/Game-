@@ -3,113 +3,215 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 
-public class Teams(Var[] Variables, List<string> Cache, double[][] CacheNumInt)
+public class Teams(Var[] Variables, string[] StringsArray)
 {
-    private List<string> line = new List<string>();
-    List<string> finalStr = new List<string>();
+    private double[] line = new double[] { };
     public StringBuilder _dynamicOutput = new StringBuilder(65536);
 
     private int lineNum = 0;
-    public void UpdateLine(List<string> Line, int LineNum)
+
+    public void UpdateLine(double[] Line, int LineNum)
     {
         line = Line;
         lineNum = LineNum;
-    }
-
-    public void Input()
-    {
-        finalStr.Clear();
-
-        for (int i = 2; i < line.Count - 4; i++)
-        {
-            finalStr.Add(line[i]);
-        }
-        Console.Write(string.Join(" ", finalStr));
-        string? main = Console.ReadLine() ?? "null";
-
-        Variables[IdVar(line[line.Count - 1])] = main;
     }
     public void Print()
     {
         //Console.WriteLine("Добавляем строку " + Cache[lineNum] + " для вывода");
         //Console.WriteLine("Строка в коде " + lineNum);
         //Console.WriteLine("Строка из кэша" + Cache[lineNum]);
-
         //Console.WriteLine("Кэш " + string.Join(" | ", Cache));
+        //Console.WriteLine((int)line[1]);
 
-        _dynamicOutput.Append(Cache[lineNum]);
+        _dynamicOutput.Append(StringsArray[(int)line[1]]);
     }
     public void PrintVar()
     {
-        Var nameVar = Variables[IdVar(line[1])];
+        Var nameVar = Variables[(int)line[1]];
         _dynamicOutput.Append(nameVar.GetValue()).Append("\n");
     }
 
     public void Calc()
     {
+        double mainVariable = line[1];
+
+        for (int i = 2; i < line.Length - 1; i += 2)
+        {
+            double nextNum = line[i + 1];
+            double op = line[i];
+
+            if (op == 1) mainVariable += nextNum;
+            else if (op == 2) mainVariable -= nextNum;
+            else if (op == 3) mainVariable *= nextNum;
+            else if (op == 4) mainVariable /= nextNum;
+            else if (op == 5) mainVariable = (int)Math.Pow(mainVariable, nextNum);
+        }
+
+        int idVar = (int)line[line.Length - 1];
+        Variables[idVar] = mainVariable;
     }
     public void Sum()
     {
-        string nameVariable = line[line.Count - 1];
-        double mainVariable = 0.0;
-        int id = IdVar(line[1]);
+        //Console.WriteLine("Складываем!");
+        double mainVariable = line[1];
 
-        // Проверяем первый операнд
-        if (CacheNumInt[lineNum][0] == 0.0)
+        Var v;
+        v = Variables[(int)mainVariable];
+
+        if (v != null)
         {
-            Var v = Variables[id];
+            if (v.Type == VarType.Int)
+                mainVariable = v._intValue;
+            else
+                mainVariable = v._floatValue;
+        }
+
+        for (int i = 2; i < line.Length - 2; i += 2)
+        {
+            double nextNum = line[i + 1];
+            double op = line[i];
+
+            v = Variables[(int)nextNum];
             if (v != null)
             {
                 if (v.Type == VarType.Int)
-                    mainVariable = v._intValue;
-                else if (v.Type == VarType.Double)
-                    mainVariable = v._floatValue;
+                    nextNum = v._intValue;
+                else
+                    nextNum = v._floatValue;
+            }
+
+            if (op == 1) mainVariable += nextNum;
+            else if (op == 2) mainVariable -= nextNum;
+            else if (op == 3) mainVariable *= nextNum;
+            else if (op == 4) mainVariable /= nextNum;
+            else if (op == 5) mainVariable = (int)Math.Pow(mainVariable, nextNum);
+        }
+
+        int idVar = (int)line[line.Length - 1];
+        Variables[idVar] = mainVariable;
+    }
+    public void SumStr()
+    {
+        string text = "";
+        for (int i = 1; i < line.Length - 1; i++)
+        {
+            int id = (int)line[i];
+            if (id != 255)
+            {
+                Var v = Variables[(int)id];
+
+                if (v != null)
+                {
+                    text += v.ToString();
+                }
+                else
+                {
+                    text += StringsArray[id];
+                }
+
+                text += " ";
+            }
+        }
+
+        int idVar = (int)line[line.Length - 1];
+        Variables[idVar] = text;
+    }
+
+    public void Int() 
+    {
+        int mainVar = (int)line[2];
+        int idVar = (int)line[1];
+
+        Var v = Variables[mainVar];
+        if (v != null)
+        {
+            Variables[idVar] = Variables[mainVar];
+        }
+        else
+        {
+            Variables[idVar] = mainVar;
+        }
+    }
+    public void Float()
+    {
+        double mainVar = line[2];
+        int idVar = (int)line[1];
+
+        Var v = Variables[(int)mainVar];
+        if (v != null)
+        {
+            Variables[idVar] = Variables[(int)mainVar];
+        }
+        else
+        {
+            Variables[idVar] = mainVar;
+        }
+    }
+    public void Bool()
+    {
+        int mainVar = (int)line[2];
+        int idVar = (int)line[1];
+
+        if (mainVar == 1)
+        {
+            Variables[idVar] = true;
+        }
+        else if (mainVar == -1)
+        {
+            Variables[idVar] = false;
+        }
+        else
+        {
+            Variables[idVar] = Variables[mainVar];
+        }
+    }
+    public void Str()
+    {
+        int mainVar = (int)line[2];
+        int idVar = (int)line[1];
+
+        Var v = Variables[mainVar];
+        //Console.WriteLine("Переменная " + v);
+
+        if (v != null)
+        {
+            Variables[idVar] = Variables[mainVar];
+        }
+        else
+        {
+            Variables[idVar] = StringsArray[mainVar];
+        }
+    }
+
+    public void Refect()
+    {
+        int idVar = (int)line[2];
+        int main = (int)line[1];
+
+        Var v = Variables[main];
+        string str = StringsArray[main];
+
+        if (main == 1)
+        {
+            Variables[idVar] = true;
+        }
+        else if (main == -1)
+        {
+            Variables[idVar] = false;
+        }
+        else if (v == null)
+        {
+            if (str != null)
+                Variables[idVar] = StringsArray[main];
+            else
+            {
+                Variables[idVar] = main;
             }
         }
         else
         {
-            mainVariable = CacheNumInt[lineNum][0];
+            Variables[idVar] = Variables[main];
         }
-
-        for (int i = 1; i < CacheNumInt[lineNum].Length; i++)
-        {
-            double nextNum = CacheNumInt[lineNum][i];
-            string op = line[i * 2];
-
-            if (nextNum == 0.0)
-            {
-                id = IdVar(line[i * 2 - 1]);
-                Var v = Variables[id];
-
-                if (v != null)
-                {
-                    if (v.Type == VarType.Int)
-                        nextNum = v._intValue;
-                    else if (v.Type == VarType.Double)
-                        nextNum = v._floatValue;
-                }
-            }
-
-            if (op == "+") mainVariable += nextNum;
-            else if (op == "-") mainVariable -= nextNum;
-            else if (op == "*") mainVariable *= nextNum;
-            else if (op == "/") mainVariable /= nextNum;
-            else if (op == "@") mainVariable = (int)Math.Pow(mainVariable, nextNum);
-        }
-
-        id = IdVar(nameVariable);
-        Variables[id] = mainVariable;
-    }
-
-    public void Int() { }
-    public void Float()
-    {
-        string nameVariable = line[1];
-        string numberDouble = line[line.Count - 1];
-        double mainVariable = double.Parse(numberDouble, CultureInfo.InvariantCulture);
-
-        int id = IdVar(nameVariable);
-        Variables[id] = mainVariable;
     }
 
 
@@ -121,24 +223,9 @@ public class Teams(Var[] Variables, List<string> Cache, double[][] CacheNumInt)
     {
         string text = _dynamicOutput.ToString();
 
+        //Console.WriteLine("Выводим вывод!");
+
         Console.Write(text.Replace("$", "\n"));
         _dynamicOutput.Clear();
-    }
-
-    private int IdVar(string nameVariable)
-    {
-        if (string.IsNullOrEmpty(nameVariable)) return 0;
-
-        uint hash = 2166136261;
-
-        for (int i = 0; i < nameVariable.Length; i++)
-        {
-            hash ^= nameVariable[i];
-            hash *= 16777619;
-        }
-
-        // Math.Abs гарантирует, что число не будет отрицательным
-        // % 1001 сжимает результат строго в рамки от 0 до 1000
-        return Math.Abs((int)hash) % 1001;
     }
 }

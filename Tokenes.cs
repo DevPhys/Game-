@@ -54,4 +54,32 @@ public class Tokenes
 
         return tokens;
     }
+    public Dictionary<int, List<string>> Tokenizer()
+    {
+        int lineNum = 0;
+        Dictionary<int, List<string>> lines = new Dictionary<int, List<string>>();
+
+        for (int i = 0; i < tokens.Count; i++)
+        {
+            if (lines.ContainsKey(lineNum))
+            {
+                if (tokens[i] != ";")
+                {
+                    lines[lineNum].Add(tokens[i]);
+                }
+                else
+                {
+                    lineNum++;
+                }
+            }
+            else
+            {
+                lines[lineNum] = [];
+                i--;
+                continue;
+            }
+        }
+
+        return lines;
+    }
 }

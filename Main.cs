@@ -1,23 +1,23 @@
 ﻿public class Main
 {
-    public string nameFile = @"data.txt";
-    public string nameJIT = @"JIT.txt";
-
-    public Var[] variables = new Var[1000];
-    public int[] loopMemory = new int[1000];
-    public Dictionary<string, Func<bool>> commandsValidate;
-    public double[][] cacheNumInt =new double[1000][];
-
-    public List<string> cache = new List<string>();
+    public Var[] variables;
+    public int[] loopMemory;
     public Action[] teamsArray;
+    public string[] stringsArray;
+
+    public Dictionary<string, Func<bool>> commandsValidate;
 
     public ValidateLine validateLine = new ValidateLine();
     public Teams teams;
     public Tokenes tokenes = new Tokenes();
 
-    public Main()
+    public Main(int NumVar = 999999, int NumLoopMemory = 999999, int NumString = 999999)
     {
-        teams = new Teams(variables, cache, cacheNumInt);
+        variables = new Var[NumVar];
+        loopMemory = new int[NumLoopMemory];
+        stringsArray = new string[NumString];
+
+        teams = new Teams(variables, stringsArray);
 
         commandsValidate = new Dictionary<string, Func<bool>> {
             { "write", validateLine.Print },
@@ -29,14 +29,18 @@
             { "float", validateLine.Float  },
             { "write_var", validateLine.PrintVar },};
         teamsArray = new Action[]{
-            teams.Print, teams.Input,
-            teams.Int, teams.Float,
+            teams.Print, teams.PrintVar,
 
-            teams.Calc,
+            teams.Int, teams.Float,
+            teams.Bool, teams.Str,
+
+            teams.Calc, teams.Sum,
+            teams.SumStr,
+
+            teams.Comment,
             teams.Comment,
 
-            teams.PrintVar,
-            teams.Sum,};
-
+            teams.Refect,
+        };
     }
 }

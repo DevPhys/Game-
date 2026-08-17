@@ -16,7 +16,6 @@ public class Programm
     Teams teams;
 
     List<string> cache;
-    List<TimeSpan> time = new List<TimeSpan>();
 
     private CancellationTokenSource GcTokenSource = new CancellationTokenSource();
 
@@ -26,13 +25,13 @@ public class Programm
         teams = main.teams;
 
         this.parser = parser;
-        cache = main.cache;
+        //cache = main.cache;
     }
     private void Start(bool bl)
     {
         parser.tokens = Tokens.Token(nameFile);
         if (bl)
-            Console.WriteLine("| " + string.Join(" | ", parser.tokens) + " |\n");
+            //Console.WriteLine("| " + string.Join(" | ", parser.tokens) + " |\n");
 
         parser.Tokenizer();
         //parser.Validates();
@@ -76,125 +75,49 @@ public class Programm
     {
         GcTokenSource?.Cancel();
     }
-    private void RunCod((bool WriteConsole, int numRestartCod) main)
+    private (TimeSpan sw, TimeSpan swCod) RunCod(bool WriteConsole)
     {
-        int I = 1;
-        if (main.WriteConsole)
-            I = main.numRestartCod;
+        var sw = Stopwatch.StartNew();
 
-        for (int i = 0; i < I; i++)
+        // Начало выполнение программы
+        Start(WriteConsole);
+
+        // Компиляция
+        Compiler();
+        GCstart();
+
+
+        var swCod = Stopwatch.StartNew();
+
+        // Выполнение основного кода
+        parser.ExecutionCod();
+
+        swCod.Stop();
+
+        return (sw.Elapsed, swCod.Elapsed);
+    }
+    public (TimeSpan sw, TimeSpan swCod) Run(string Name, bool WriteConsole)
+    {
+        nameFile = Name;
+        var swTime = RunCod(WriteConsole);
+
+        // Вывод
+        if (WriteConsole)
         {
             var sw = Stopwatch.StartNew();
 
-            parser.ExecutionCod();
-
-            sw.Stop();
-
-            time.Add(sw.Elapsed);
-            if (main.WriteConsole) 
-                Console.WriteLine($"Время выполнения кода. Цикл {i}: {sw.Elapsed.TotalNanoseconds:F4} нс ({sw.Elapsed.TotalMilliseconds:F4} мс)");
-        }
-    }
-    public void Run(string Name, (bool WriteConsole, int numRestartCod) main)
-    {
-        nameFile = Name;
-
-        // Начало выполнение программы
-        var sw = Stopwatch.StartNew();
-        Start(main.WriteConsole);
-        sw.Stop();
-        if (main.WriteConsole)
-            Console.WriteLine($"Время токенизации: {sw.Elapsed.TotalNanoseconds:F4} нс ({sw.Elapsed.TotalMilliseconds:F4} мс)");
-
-        // Компиляция
-        sw.Restart();
-        Compiler();
-        GCstart();
-        sw.Stop();
-        if (main.WriteConsole)
-            Console.WriteLine($"Время кэширования: {sw.Elapsed.TotalNanoseconds:F4} нс ({sw.Elapsed.TotalMilliseconds:F4} мс)\n");
-
-        // Выполнение основного кода
-        sw.Restart();
-        RunCod((main.WriteConsole, main.numRestartCod));
-        sw.Stop();
-        if (main.WriteConsole)
-            Console.WriteLine($"\nСуммарное время выполения кода: {sw.Elapsed.TotalNanoseconds:F4} нс ({sw.Elapsed.TotalMilliseconds:F4} мс)\n");
-
-        // Вывод
-        if (main.WriteConsole)
-        {
-            sw.Restart();
             Console.WriteLine("Вывод:");
             if (parser.isTextWrite)
                 Console.Write(cache[0]);
             else
                 teams.End();
             GCstop();
+
             sw.Stop();
-            Console.WriteLine($"\nВремя вывода: {sw.Elapsed.TotalNanoseconds:F4} нс ({sw.Elapsed.TotalMilliseconds:F4} мс)\n");
-
-
-            int count = time.Count;
-            TimeSpan total = TimeSpan.FromTicks(time.Sum(t => t.Ticks)); // Суммарное время 
-            TimeSpan average = TimeSpan.FromTicks((long)time.Average(t => t.Ticks));  // Среднее время
-            TimeSpan min = time.Min();  // Минимальное время
-            TimeSpan max = time.Max();  // Максимальное время
-            var sorted = time.OrderBy(t => t).ToList();  // Медиана (среднее значение по порядку)
-            TimeSpan median;
-
-            if (count % 2 == 0)
-            {
-                // Чётное количество — среднее двух центральных
-                var mid1 = sorted[count / 2 - 1];
-                var mid2 = sorted[count / 2];
-                median = TimeSpan.FromTicks((mid1.Ticks + mid2.Ticks) / 2);
-            }
-            else
-            {
-                // Нечётное — центральный элемент
-                median = sorted[count / 2];
-            }
-
-            TimeSpan range = max - min;  // Размах (макс - мин)
-
-            // Стандартное отклонение
-            double meanTicks = time.Average(t => t.Ticks);
-            double sumOfSquares = time.Sum(t => Math.Pow(t.Ticks - meanTicks, 2));
-            double stdDevTicks = Math.Sqrt(sumOfSquares / count);
-            TimeSpan stdDev = TimeSpan.FromTicks((long)stdDevTicks);
-
-            // Дисперсия
-            TimeSpan variance = TimeSpan.FromTicks((long)(sumOfSquares / count));
-
-            // ========== ПРОЦЕНТИЛИ ==========
-
-            // 95-й процентиль (95% замеров быстрее этого значения)
-            int percentile95Index = (int)Math.Ceiling(count * 0.95) - 1;
-            TimeSpan percentile95 = sorted[Math.Min(percentile95Index, count - 1)];
-
-            // 99-й процентиль
-            int percentile99Index = (int)Math.Ceiling(count * 0.99) - 1;
-            TimeSpan percentile99 = sorted[Math.Min(percentile99Index, count - 1)];
-
-            Console.WriteLine("═══════════════════════════════════════════════════");
-            Console.WriteLine("          Статистика времени выполнения");
-            Console.WriteLine("═══════════════════════════════════════════════════");
-            Console.WriteLine();
-            Console.WriteLine($"Количество замеров:        {count:N0}");
-            Console.WriteLine($"Суммарное время:           {total.TotalMilliseconds:F2} мс");
-            Console.WriteLine($"Среднее время:             {average.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"Минимальное время:         {min.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"Максимальное время:        {max.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"Медиана:                   {median.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"Размах (max-min):          {range.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"Стандартное отклонение:    {stdDev.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"Дисперсия:                 {variance.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"95-й процентиль:           {percentile95.TotalMilliseconds:F4} мс");
-            Console.WriteLine($"99-й процентиль:           {percentile99.TotalMilliseconds:F4} мс");
-            Console.WriteLine();
-            Console.WriteLine("═══════════════════════════════════════════════════");
+            Console.WriteLine($"Время вывода: {sw.Elapsed.TotalNanoseconds:F4} нс ({sw.Elapsed.TotalMilliseconds:F4} мс)\n");
         }
+
+        return swTime;
     }
 }
 public class Parser 
@@ -219,7 +142,9 @@ public class Parser
     Dictionary<string, Func<bool>> commandsValidate;
     Var[] variables;
     int[] loopMemory;
+
     double[][] cacheNumInt;
+    public int[][] cacheIdVar;
 
     MathSTR math = new MathSTR();
 
@@ -233,9 +158,10 @@ public class Parser
         teams = main.teams;
         validateLine = main.validateLine;
         variables = main.variables;
-        cache = main.cache;
+        //cache = main.cache;
         loopMemory = main.loopMemory;
-        cacheNumInt = main.cacheNumInt;
+        //cacheNumInt = main.cacheNumInt;
+        //cacheIdVar = main.cacheIdVar;
     }
 
     public Dictionary<int, List<string>> Tokenizer()
@@ -337,8 +263,7 @@ public class Parser
         }
 
         // Math.Abs гарантирует, что число не будет отрицательным
-        // % 1001 сжимает результат строго в рамки от 0 до 1000
-        return Math.Abs((int)hash) % 1001;
+        return Math.Abs((int)hash) % 100000;
     }
     public void CompilerPase1()
     {
@@ -348,6 +273,8 @@ public class Parser
         while (lines.ContainsKey(lineNum))
         {
             word = lines[lineNum][0];
+            cacheIdVar[lineNum] = new int[lines[lineNum].Count];
+
             if (word != "write") isTextWrite = false;
 
             if (word == "write")
@@ -395,25 +322,44 @@ public class Parser
                 {
                     mainVariable = parsed;
                 }
+                else
+                {
+                    cacheIdVar[lineNum][1] = IdVar(lines[lineNum][1]);
+                }
 
-                int operandCount = (lines[lineNum].Count - 3) / 2 + 1;
+                int nameVarI = lines[lineNum].Count - 1;
 
-                cacheNumInt[lineNum] = new double[operandCount];
-                cacheNumInt[lineNum][0] = mainVariable;
+                cacheNumInt[lineNum] = new double[lines[lineNum].Count];
 
-                int index = 1;
                 for (int i = 2; i < lines[lineNum].Count - 3; i += 2)
                 {
-                    double nextNum = 0;
+                    string op = lines[lineNum][i];
+                    int opNum = 1;
 
                     if (double.TryParse(lines[lineNum][i + 1].Replace(",", "."), NumberStyles.Float, CultureInfo.InvariantCulture, out double parsedNext))
                     {
-                        nextNum = parsedNext;
+                        //Console.WriteLine("Добавляем число: " + parsedNext);
+                        //Console.WriteLine("До " + string.Join(" | ", cacheNumInt[lineNum]));
+
+                        cacheNumInt[lineNum][i + 1] = parsedNext;
+
+                        //Console.WriteLine("После " + string.Join(" | ", cacheNumInt[lineNum]));
+                    }
+                    else
+                    {
+                        cacheIdVar[lineNum][i + 1] = IdVar(lines[lineNum][i + 1]);
+                        cacheNumInt[lineNum][i + 1] = 0.0;
                     }
 
-                    cacheNumInt[lineNum][index] = nextNum;
-                    index++;
+                    if (op == "-") opNum = 2;
+                    else if (op == "*") opNum = 3;
+                    else if (op == "/") opNum = 4;
+                    else if (op == "@") opNum = 5;
+
+                    cacheNumInt[lineNum][i] = opNum;
                 }
+
+                Console.WriteLine(string.Join(" | ", cacheNumInt[lineNum]));
 
                 int id = IdVar(lines[lineNum][lines[lineNum].Count - 1]);
                 if (variables[id] == null)
@@ -429,34 +375,29 @@ public class Parser
             }
             else if (word == "loop")
             {
-                int depth = 0;
-                int endLoopLine = -1;
-
-                for (int i = lineNum + 1; i < lines.Count; i++)
+                for (int i = lineNum; i < lines.Count; i++)
                 {
-                    if (lines[i][0] == "loop")
-                        depth++;  // Вошли во вложенный цикл
+                    //Console.WriteLine(lines[i][0]);
 
                     if (lines[i][0] == "end_loop")
                     {
-                        if (depth == 0)
-                        {
-                            endLoopLine = i;  // Нашли ПАРНЫЙ end_loop
-                            break;
-                        }
-                        depth--;  // Выход из вложенного цикла
+                        loopMemory[lineNum] = i;
+                        //Console.WriteLine("Строка 1 " + i);
+
+                        break;
                     }
                 }
-
-                if (endLoopLine == -1)
-                    throw new Exception($"Нет парного end_loop для цикла на строке {lineNum}");
-
-                loopMemory[lineNum] = endLoopLine;
             }
 
             // Эта строка выполняется для всех команд КРОМЕ write (у write свой continue)
             cache.Add("Заглушка");
             lineNum++;
+        }
+
+        for (int i = 0; i < cacheIdVar.Length - 1; i++)
+        {
+            if (cacheIdVar[i] != null)
+                Console.WriteLine("Массив " + i + " " + string.Join(" | ", cacheIdVar[i]));
         }
 
         if (isTextWrite)
@@ -487,7 +428,7 @@ public class Parser
             RuntimeHelpers.PrepareMethod(method.MethodHandle);
         }
 
-        var dummyLine = new List<string> { "", "", "", ";" };
+        var dummyLine = new double [] { };
 
         teams.UpdateLine(dummyLine, 0);
 
@@ -539,87 +480,39 @@ public class Parser
                 if (lineNum > localCommandArray.Length - 1) Console.WriteLine($"Выход за массив! Строка {lineNum}");
 
                 //Console.WriteLine(string.Join(" | ", l));
-                updateLine(l, lineNum);
+                //updateLine(l, lineNum);
                 //Console.WriteLine("Команда " + localCommandArray[lineNum]);
 
                 //try
                 //{
                 if (localCommandArray[lineNum] == 8) // loop
                 {
-                    int loopCount = int.Parse(l[1]);
-                    int loopStart = lineNum;
-                    int loopEnd = loopMemory[lineNum];
+                    int num = 0;
+                    int numIf = int.Parse(l[1]);
 
-                    // Сохраняем в стек
-                    loopReturnStack.Push(loopStart);
-                    loopCounterStack.Push(loopCount);
+                    //Console.WriteLine(loopMemory[lineNum] + "  " + numIf + "  " + string.Join(" | ", l));
+                    //Console.WriteLine(lineNum + " <- Номер строки");
 
-                    // Выполняем тело цикла
-                    for (int i = 0; i < loopCount; i++)
+                    for (int i = lineNum; i < loopMemory[lineNum]; i++)
                     {
-                        for (int j = loopStart + 1; j < loopEnd; j++)
+                        //updateLine(lines[i], i);
+
+                        if (localCommandArray[i] < 8)
+                            localCommands[localCommandArray[i]]();
+
+                        if (i + 1 == loopMemory[lineNum] && num < numIf)
                         {
-                            if (localLines.TryGetValue(j, out var loopLine))
-                            {
-                                updateLine(loopLine, j);
-                                int cmdIdx = localCommandArray[j];
-
-                                if (cmdIdx == 8) // Вложенный loop
-                                {
-                                    // Вложенный цикл обработается рекурсивно через тот же механизм
-                                    // Но нам нужно выполнить его целиком
-                                    int nestedLoopEnd = loopMemory[j];
-                                    int nestedLoopCount = int.Parse(localLines[j][1]);
-
-                                    for (int ni = 0; ni < nestedLoopCount; ni++)
-                                    {
-                                        for (int nj = j + 1; nj < nestedLoopEnd; nj++)
-                                        {
-                                            if (localLines.TryGetValue(nj, out var nestedLine))
-                                            {
-                                                updateLine(nestedLine, nj);
-                                                int nestedCmdIdx = localCommandArray[nj];
-                                                if (nestedCmdIdx != 9) // не end_loop
-                                                    localCommands[nestedCmdIdx]();
-                                            }
-                                        }
-                                    }
-
-                                    // Пропускаем уже выполненный вложенный цикл
-                                    j = nestedLoopEnd;
-                                    continue;
-                                }
-                                else if (cmdIdx != 9) // не end_loop
-                                {
-                                    localCommands[cmdIdx]();
-                                }
-                            }
+                            i = lineNum;
+                            num++;
                         }
                     }
 
-                    // Восстанавливаем стек
-                    loopReturnStack.Pop();
-                    loopCounterStack.Pop();
-
-                    lineNum = loopEnd + 1;
-                    continue;
-                }
-                else if (localCommandArray[lineNum] == 9) // end_loop
-                {
-                    // Если есть внешний цикл - возвращаемся
-                    if (loopReturnStack.Count > 0)
-                    {
-                        lineNum = loopReturnStack.Peek();
-                        continue;
-                    }
-                    else
-                    {
-                        throw new Exception($"Лишний end_loop на строке {lineNum}");
-                    }
+                    //Console.WriteLine("Кол-во повторений: " + num + " Условие: " + numIf);
                 }
                 else
                 {
-                    localCommands[localCommandArray[lineNum]]();
+                    if (localCommandArray[lineNum] != 9)
+                        localCommands[localCommandArray[lineNum]]();
                 }
                 //}
                 //catch (Exception ex)
